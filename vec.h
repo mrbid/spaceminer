@@ -1,8 +1,8 @@
 /*
     James William Fletcher (github.com/mrbid)
-        September 2021
+        September 2021 - February 2023
 
-    Portable floating-point Vec3 lib with basic SSE support
+    Portable floating-point Vec4 lib.
 */
 
 #ifndef VEC_H
@@ -10,15 +10,6 @@
 
 #include <math.h>
 #include <string.h>
-
-// #define NOSSE
-#if !defined(__linux__) || defined(NOSSE)
-    #define SEIR_RAND
-#endif
-
-#ifndef NOSSE
-    #include <x86intrin.h>
-#endif
 
 #define PI 3.141592741f         // PI
 #define x2PI 6.283185482f       // PI * 2
@@ -28,28 +19,30 @@
 #define RAD2DEG DEGREE
 #define DEG2RAD RADIAN
 
-#define FLOAT_MAX 9223372036854775807.0f
-#define INV_FLOAT_MAX 1.084202172e-19F
-
 typedef struct{
     float x,y,z,w;
 } vec;
 
-static inline float rsqrtss(float f);
-static inline float sqrtps(float f);
-float randf();  // uniform
-float randfn(); // box-muller normal
+static inline float randf();  // uniform [0 to 1]
+static inline float randfc(); // uniform [-1 to 1]
+float randfn(); // box-muller normal [bi-directional]
+
+static inline float fRandFloat(const float min, const float max);
+static inline int   fRand(const float min, const float max);
+
 int vec_ftoi(float f); // float to integer quantise
 
 // normalising the result is optional / at the callers responsibility
 void vRuv(vec* v);   // Random Unit Vector
 void vRuvN(vec* v);  // Normal Random Unit Vector
-void vRuvBT(vec* v); // Brian Tung Random Unit Vector
-void vRuvTA(vec* v); // T.Davison Trial & Error
+void vRuvBT(vec* v); // Brian Tung Random Unit Vector (on surface of unit sphere)
+void vRuvTA(vec* v); // T.Davison Trial & Error (inside unit sphere)
 void vRuvTD(vec* v); // T.Davison Random Unit Vector Sphere
 
 void  vCross(vec* r, const vec v1, const vec v2);
 float vDot(const vec v1, const vec v2);
+float vSum(const vec v);
+float vSumAbs(const vec v);
 void  vReflect(vec* r, const vec v, const vec n);
 
 int  vEqualTol(const vec a, const vec b, const float tol);
@@ -84,82 +77,28 @@ void vMulS(vec* r, const vec v1, const float v2);
 
 //
 
-static inline float rsqrtss(float f)
+int srandfq = 74235;
+static inline void srandf(const int seed){srandfq = seed;}
+static inline float randf()
 {
-#ifdef NOSSE
-    return 1.f/sqrtf(f);
-#else
-    return _mm_cvtss_f32(_mm_rsqrt_ss(_mm_set_ss(f)));
-#endif
-}
-
-static inline float sqrtps(float f)
-{
-#ifdef NOSSE
-    return sqrtf(f);
-#else
-    return _mm_cvtss_f32(_mm_sqrt_ps(_mm_set_ss(f)));
-#endif
-}
-
-
-#ifdef SEIR_RAND
-
-// https://www.musicdsp.org/en/latest/Other/273-fast-float-random-numbers.html
-// moc.liamg@seir.kinimod
-
-int srandfq = 1988;
-static inline void srandf(const int seed)
-{
-    srandfq = seed;
-}
-
-float randf()
-{
+    // https://www.musicdsp.org/en/latest/Other/273-fast-float-random-numbers.html (moc.liamg@seir.kinimod)
     srandfq *= 16807;
     return (float)(srandfq & 0x7FFFFFFF) * 4.6566129e-010f;
 }
-
-float randfc()
+static inline float randfc()
 {
+    // https://www.musicdsp.org/en/latest/Other/273-fast-float-random-numbers.html (moc.liamg@seir.kinimod)
     srandfq *= 16807;
     return ((float)(srandfq)) * 4.6566129e-010f;
 }
-
-#else
-
-// adapted from ogre3d asm_math.h
-// https://www.flipcode.com/archives/07-15-2002.shtml
-// https://www.cs.cmu.edu/afs/andrew/scs/cs/oldfiles/15-494-sp09/dst/A/sw/ogre-1.6.4/OgreMain/include/asm_math.h
-// https://gist.github.com/mrbid/9a050ee747a9188bc0aa849385bef865#file-rand_float_normal_bench-c-L63
-
-__int64_t srandfq = 1988;
-static inline void srandf(const __int64_t seed)
+static inline float fRandFloat(const float min, const float max)
 {
-    srandfq = seed;
+    return min + randf() * (max-min); 
 }
-
-float randf()
+static inline int fRand(const float min, const float max)
 {
-    __m64 mm0 = _mm_cvtsi64_m64(srandfq);
-    __m64 mm1 = _m_pshufw(mm0, 0x1E);
-    mm0 = _mm_add_pi32(mm0, mm1);
-    srandfq = _m_to_int64(mm0);
-    _m_empty();
-    return fabsf(srandfq) * INV_FLOAT_MAX;
+    return (int)((min + randf() * (max-min))+0.5f); 
 }
-
-float randfc()
-{
-    __m64 mm0 = _mm_cvtsi64_m64(srandfq);
-    __m64 mm1 = _m_pshufw(mm0, 0x1E);
-    mm0 = _mm_add_pi32(mm0, mm1);
-    srandfq = _m_to_int64(mm0);
-    _m_empty();
-    return srandfq * INV_FLOAT_MAX;
-}
-
-#endif
 
 float randfn()
 {
@@ -172,7 +111,7 @@ float randfn()
         v = randfc();
         r = u * u + v * v;
     }
-    return u * sqrtps(-2.f * logf(r) / r);
+    return u * sqrtf(-2.f * logf(r) / r);
 }
 
 void vRuv(vec* v)
@@ -234,6 +173,16 @@ float vDot(const vec v1, const vec v2)
     return (v1.x * v2.x) + (v1.y * v2.y) + (v1.z * v2.z);
 }
 
+float vSum(const vec v)
+{
+    return v.x + v.y + v.z;
+}
+
+float vSumAbs(const vec v)
+{
+    return fabs(v.x) + fabs(v.y) + fabs(v.z);
+}
+
 void vInv(vec* v)
 {
     v->x = -v->x;
@@ -243,7 +192,7 @@ void vInv(vec* v)
 
 void vNorm(vec* v)
 {
-    const float len = rsqrtss(v->x*v->x + v->y*v->y + v->z*v->z);
+    const float len = 1.f/sqrtf(v->x*v->x + v->y*v->y + v->z*v->z);
     v->x *= len;
     v->y *= len;
     v->z *= len;
@@ -254,7 +203,7 @@ float vDist(const vec v1, const vec v2)
     const float xm = (v1.x - v2.x);
     const float ym = (v1.y - v2.y);
     const float zm = (v1.z - v2.z);
-    return sqrtps(xm*xm + ym*ym + zm*zm);
+    return sqrtf(xm*xm + ym*ym + zm*zm);
 }
 
 float vDistSq(const vec a, const vec b)
@@ -295,12 +244,9 @@ void vReflect(vec* r, const vec v, const vec n)
 
 int vEqualTol(const vec a, const vec b, const float tol)
 {
-    if( a.x >= b.x - tol && a.x <= b.x + tol &&
-        a.y >= b.y - tol && a.y <= b.y + tol &&
-        a.z >= b.z - tol && a.z <= b.z + tol )
-        return 1;
-    else
-        return 0;
+    return  a.x >= b.x - tol && a.x <= b.x + tol &&
+            a.y >= b.y - tol && a.y <= b.y + tol &&
+            a.z >= b.z - tol && a.z <= b.z + tol;
 }
 
 void vMin(vec* r, const vec v1, const vec v2)
@@ -342,15 +288,12 @@ int vec_ftoi(float f)
 
 int vEqualInt(const vec a, const vec b)
 {
-    if(vec_ftoi(a.x) == vec_ftoi(b.x) && vec_ftoi(a.y) == vec_ftoi(b.y) && vec_ftoi(a.z) == vec_ftoi(b.z))
-        return 1;
-    else
-        return 0;
+    return vec_ftoi(a.x) == vec_ftoi(b.x) && vec_ftoi(a.y) == vec_ftoi(b.y) && vec_ftoi(a.z) == vec_ftoi(b.z);
 }
 
 float vMod(const vec v)
 {
-    return sqrtps(v.x*v.x + v.y*v.y + v.z*v.z);
+    return sqrtf(v.x*v.x + v.y*v.y + v.z*v.z);
 }
 
 float vMag(const vec v)
