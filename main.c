@@ -64,11 +64,7 @@
 #define GLFW_INCLUDE_NONE
 #include "glfw3.h"
 
-#ifndef __x86_64__ 
-    #define NOSSE
-#endif
-#define SEIR_RAND
-#include "esAux2.h"
+#include "esAux4.h"
 
 #include "res.h"
 #include "assets/rock1.h"
@@ -113,7 +109,6 @@ GLint projection_id;
 GLint modelview_id;
 GLint position_id;
 GLint lightpos_id;
-GLint solidcolor_id;
 GLint color_id;
 GLint opacity_id;
 GLint normal_id;
@@ -147,21 +142,21 @@ ESModel mdlPrepel;
 
 // game vars
 #define NEWGAME_SEED 1337
-#define THRUST_POWER 0.03f
+#define THRUST_POWER 0.09f
 #define NECK_ANGLE 0.6f
 #define ROCK_DARKNESS 0.412f
 #define MAX_ROCK_SCALE 12.f
 const f32 RECIP_MAX_ROCK_SCALE = 1.f/(MAX_ROCK_SCALE+10.f);
-#define FUEL_DRAIN_RATE 0.01f
+#define FUEL_DRAIN_RATE 0.03f
 #define SHIELD_DRAIN_RATE 0.06f
 #define REFINARY_YEILD 0.13f
 
 #ifdef __arm__
     #define ARRAY_MAX 2048 // 8 Megabytes of Asteroids
-    const f32 FAR_DISTANCE = (float)ARRAY_MAX / 4.f;
+    const f32 FAR_DISTANCE = (float)ARRAY_MAX / 2.f;
 #else
     #define ARRAY_MAX 16384 // 64 Megabytes of Asteroids
-    f32 FAR_DISTANCE = (float)ARRAY_MAX / 8.f;
+    f32 FAR_DISTANCE = (float)ARRAY_MAX / 2.f;
 #endif
 typedef struct
 {
@@ -205,8 +200,8 @@ sint freeRock()
 */
 
 // camera vars
-uint focus_cursor = 1;
-double sens = 0.001f;
+uint focus_cursor = 0;
+double sens = 0.003f;
 f32 xrot = 0.f;
 f32 yrot = 0.f;
 f32 zoom = -25.f;
@@ -322,7 +317,7 @@ void rRock(uint i, f32 dist)
 
     mMul(&modelview, &model, &view);
 
-    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*) &modelview.m[0][0]);
+    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*)&modelview.m[0][0]);
     glUniform1f(opacity_id, 1.0f);
 
     // unique colour arrays for each rock within visible distance
@@ -379,7 +374,7 @@ void rLegs(f32 x, f32 y, f32 z, f32 rx)
 
     mMul(&modelview, &model, &view);
 
-    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*) &modelview.m[0][0]);
+    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*)&modelview.m[0][0]);
     glUniform1f(opacity_id, 1.0f);
     glUniform3f(color_id, 1.f, 1.f, 1.f);
 
@@ -416,7 +411,7 @@ void rBody(f32 x, f32 y, f32 z, f32 rx)
 
     mMul(&modelview, &model, &view);
 
-    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*) &modelview.m[0][0]);
+    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*)&modelview.m[0][0]);
     glUniform1f(opacity_id, 1.0f);
     glUniform3f(color_id, 1.f, 1.f, 1.f);
 
@@ -443,7 +438,7 @@ void rFuel(f32 x, f32 y, f32 z, f32 rx)
 
     mMul(&modelview, &model, &view);
 
-    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*) &modelview.m[0][0]);
+    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*)&modelview.m[0][0]);
     glUniform1f(opacity_id, 1.0f);
     glUniform3f(color_id, fone(0.062f+(1.f-pf)), fone(1.f+(1.f-pf)), fone(0.873f+(1.f-pf)));
 
@@ -475,7 +470,7 @@ void rArms(f32 x, f32 y, f32 z, f32 rx)
 
     mMul(&modelview, &model, &view);
 
-    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*) &modelview.m[0][0]);
+    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*)&modelview.m[0][0]);
     glUniform1f(opacity_id, 1.0f);
     glUniform3f(color_id, 1.f, 1.f, 1.f);
 
@@ -507,7 +502,7 @@ void rLeftFlame(f32 x, f32 y, f32 z, f32 rx)
 
     mMul(&modelview, &model, &view);
 
-    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*) &modelview.m[0][0]);
+    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*)&modelview.m[0][0]);
     glUniform1f(opacity_id, 1.0f);
     //glUniform3f(color_id, 1.f, 0.f, 0.f);
     glUniform3f(color_id, 0.062f, 1.f, 0.873f);
@@ -540,7 +535,7 @@ void rRightFlame(f32 x, f32 y, f32 z, f32 rx)
 
     mMul(&modelview, &model, &view);
 
-    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*) &modelview.m[0][0]);
+    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*)&modelview.m[0][0]);
     glUniform1f(opacity_id, 1.0f);
     glUniform3f(color_id, 0.062f, 1.f, 0.873f);
 
@@ -581,7 +576,7 @@ void rFace(f32 x, f32 y, f32 z, f32 rx)
 
     mMul(&modelview, &model, &view);
 
-    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*) &modelview.m[0][0]);
+    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*)&modelview.m[0][0]);
     glUniform1f(opacity_id, 1.0f);
     glUniform3f(color_id, 1.f, 1.f, 1.f);
 
@@ -623,7 +618,7 @@ void rBreak(f32 x, f32 y, f32 z, f32 rx)
 
     mMul(&modelview, &model, &view);
 
-    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*) &modelview.m[0][0]);
+    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*)&modelview.m[0][0]);
     glUniform1f(opacity_id, 1.0f);
     glUniform3f(color_id, fone(0.644f+(1.f-pb)), fone(0.209f+(1.f-pb)), fone(0.f+(1.f-pb)));
 
@@ -665,7 +660,7 @@ void rShield(f32 x, f32 y, f32 z, f32 rx)
 
     mMul(&modelview, &model, &view);
 
-    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*) &modelview.m[0][0]);
+    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*)&modelview.m[0][0]);
     glUniform1f(opacity_id, 1.0f);
     glUniform3f(color_id, fone(0.f+(1.f-ps)), fone(0.8f+(1.f-ps)), fone(0.28f+(1.f-ps)));
 
@@ -707,7 +702,7 @@ void rSlow(f32 x, f32 y, f32 z, f32 rx)
 
     mMul(&modelview, &model, &view);
 
-    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*) &modelview.m[0][0]);
+    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*)&modelview.m[0][0]);
     glUniform1f(opacity_id, 1.0f);
     glUniform3f(color_id, fone(0.429f+(1.f-psl)), fone(0.f+(1.f-psl)), fone(0.8f+(1.f-psl)));
 
@@ -749,7 +744,7 @@ void rRepel(f32 x, f32 y, f32 z, f32 rx)
 
     mMul(&modelview, &model, &view);
 
-    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*) &modelview.m[0][0]);
+    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*)&modelview.m[0][0]);
     glUniform1f(opacity_id, 1.0f);
     glUniform3f(color_id, fone(0.095f+(1.f-pre)), fone(0.069f+(1.f-pre)), fone(0.041f+(1.f-pre)));
 
@@ -776,7 +771,7 @@ void rShieldElipse(f32 x, f32 y, f32 z, f32 rx, f32 opacity)
 
     mMul(&modelview, &model, &view);
 
-    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*) &modelview.m[0][0]);
+    glUniformMatrix4fv(modelview_id, 1, GL_FALSE, (f32*)&modelview.m[0][0]);
     glUniform1f(opacity_id, opacity);
     glUniform3f(color_id, 0.f, 0.717, 0.8f);
 
@@ -842,6 +837,8 @@ void rPlayer(f32 x, f32 y, f32 z, f32 rx)
         {
             ps -= SHIELD_DRAIN_RATE * ss * dt;
             ps = fzero(ps);
+            //pv = (vec){0.f,0.f,0.f};
+            //vReflect(&pv, pv, pd);
 
             rShieldElipse(x, y+1.f, z, rx, fsat(ss));
         }
@@ -862,10 +859,11 @@ void newGame(unsigned int seed)
     
     glfwSetWindowTitle(window, "Space Miner");
 
+    f32 FDGD = FAR_DISTANCE;
 #ifndef __arm__
     const f32 scalar = esRandFloat(8.f, 12.f);
-    FAR_DISTANCE = (float)ARRAY_MAX / scalar;
-    printf("Far Distance Divisor: %g\n", scalar);
+    FDGD = (float)ARRAY_MAX / scalar;
+    //printf("Far Distance Divisor: %g\n", scalar);
 #endif
     
     pp = (vec){0.f, 0.f, 0.f};
@@ -894,9 +892,9 @@ void newGame(unsigned int seed)
     {
         array_rocks[i].free = 0;
         array_rocks[i].scale = esRandFloat(0.1f, MAX_ROCK_SCALE);
-        array_rocks[i].pos.x = esRandFloat(-FAR_DISTANCE, FAR_DISTANCE);
-        array_rocks[i].pos.y = esRandFloat(-FAR_DISTANCE, FAR_DISTANCE);
-        array_rocks[i].pos.z = esRandFloat(-FAR_DISTANCE, FAR_DISTANCE);
+        array_rocks[i].pos.x = esRandFloat(-FDGD, FDGD);
+        array_rocks[i].pos.y = esRandFloat(-FDGD, FDGD);
+        array_rocks[i].pos.z = esRandFloat(-FDGD, FDGD);
 
         array_rocks[i].rnd = esRand(0, 1000);
         array_rocks[i].rndf = esRandFloat(0.05f, 0.3f);
@@ -919,7 +917,7 @@ void newGame(unsigned int seed)
             array_rocks[i].nores = 1;
         }
 
-        for(uint j = 0; j < 720; j += 3)
+        for(uint j = 0; j < 717; j += 3)
         {
             uint set = 0;
             #define CLR_CHANCE 0.01f
@@ -1084,19 +1082,16 @@ void main_loop()
     if(focus_cursor == 1)
     {
         glfwGetCursorPos(window, &x, &y);
-        
-        if(x != ww2 || y != wh2)
-        {
-            xrot += (ww2-x)*sens;
-            yrot += (wh2-y)*sens;
 
-            if(yrot > 0.7f)
-                yrot = 0.7f;
-            if(yrot < -0.7f)
-                yrot = -0.7f;
+        xrot += (lx-x)*sens;
+        yrot += (ly-y)*sens;
 
-            glfwSetCursorPos(window, ww2, wh2);
-        }
+        if(yrot > 0.7f)
+            yrot = 0.7f;
+        if(yrot < -0.7f)
+            yrot = -0.7f;
+
+        lx = x, ly = y;
     }
 
     mIdent(&view);
@@ -1116,13 +1111,13 @@ void main_loop()
 
     // render player
     shadeLambert1(&position_id, &projection_id, &modelview_id, &lightpos_id, &normal_id, &color_id, &opacity_id);
-    glUniformMatrix4fv(projection_id, 1, GL_FALSE, (f32*) &projection.m[0][0]);
+    glUniformMatrix4fv(projection_id, 1, GL_FALSE, (f32*)&projection.m[0][0]);
     glUniform3f(lightpos_id, lightpos.x, lightpos.y, lightpos.z);
     rPlayer(pp.x, pp.y, pp.z, pr);
 
     // render asteroids
     shadeLambert3(&position_id, &projection_id, &modelview_id, &lightpos_id, &normal_id, &color_id, &opacity_id);
-    glUniformMatrix4fv(projection_id, 1, GL_FALSE, (f32*) &projection.m[0][0]);
+    glUniformMatrix4fv(projection_id, 1, GL_FALSE, (f32*)&projection.m[0][0]);
     glUniform3f(lightpos_id, lightpos.x, lightpos.y, lightpos.z);
     so = 0.f;
     for(uint i = 0; i < ARRAY_MAX; i++)
@@ -1155,10 +1150,10 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
     // control
     if(action == GLFW_PRESS)
     {
-        if(key == GLFW_KEY_A){ keystate[0] = 1; }
-        else if(key == GLFW_KEY_D){ keystate[1] = 1; }
-        else if(key == GLFW_KEY_W){ keystate[2] = 1; }
-        else if(key == GLFW_KEY_S){ keystate[3] = 1; }
+        if(key == GLFW_KEY_A || key == GLFW_KEY_LEFT){ keystate[0] = 1; }
+        else if(key == GLFW_KEY_D || key == GLFW_KEY_RIGHT){ keystate[1] = 1; }
+        else if(key == GLFW_KEY_W || key == GLFW_KEY_UP){ keystate[2] = 1; }
+        //else if(key == GLFW_KEY_S){ keystate[3] = 1; }
         else if(key == GLFW_KEY_LEFT_SHIFT){ keystate[4] = 1; }
         else if(key == GLFW_KEY_SPACE){ keystate[5] = 1; }
 
@@ -1286,22 +1281,17 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
         // toggle mouse focus
         if(key == GLFW_KEY_ESCAPE)
         {
-            focus_cursor = 1 - focus_cursor;
-            if(focus_cursor == 0)
-                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-            else
-                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
-            glfwSetCursorPos(window, ww2, wh2);
-            glfwGetCursorPos(window, &ww2, &wh2);
-            
+            focus_cursor = 0;
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            glfwGetCursorPos(window, &lx, &ly);
         }
     }
     else if(action == GLFW_RELEASE)
     {
-        if(key == GLFW_KEY_A){ keystate[0] = 0; }
-        else if(key == GLFW_KEY_D){ keystate[1] = 0; }
-        else if(key == GLFW_KEY_W){ keystate[2] = 0; }
-        else if(key == GLFW_KEY_S){ keystate[3] = 0; }
+        if(key == GLFW_KEY_A || key == GLFW_KEY_LEFT){ keystate[0] = 0; }
+        else if(key == GLFW_KEY_D || key == GLFW_KEY_RIGHT){ keystate[1] = 0; }
+        else if(key == GLFW_KEY_W || key == GLFW_KEY_UP){ keystate[2] = 0; }
+        //else if(key == GLFW_KEY_S){ keystate[3] = 0; }
         else if(key == GLFW_KEY_LEFT_SHIFT){ keystate[4] = 0; }
         else if(key == GLFW_KEY_SPACE){ keystate[5] = 0; }
     }
@@ -1322,10 +1312,10 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
-    if(yoffset < 0)
-        zoom -= 1.0f;
+    if(yoffset < 0.0)
+        zoom += 0.06f * zoom;
     else
-        zoom += 1.0f;
+        zoom -= 0.06f * zoom;
     
     if(zoom > -15.f){zoom = -15.f;}
 }
@@ -1334,6 +1324,13 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
     if(action == GLFW_PRESS)
     {
+        if(focus_cursor == 0)
+        {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            glfwGetCursorPos(window, &lx, &ly);
+            focus_cursor = 1;
+        }
+
         if(button == GLFW_MOUSE_BUTTON_LEFT && pb > 0.f)
         {
             for(uint i = 0; i < ARRAY_MAX; i++)
@@ -1440,17 +1437,17 @@ void window_size_callback(GLFWwindow* window, int width, int height)
     aspect = (f32)winw / (f32)winh;
     ww = winw;
     wh = winh;
-    rww = 1/ww;
-    rwh = 1/wh;
-    ww2 = ww/2;
-    wh2 = wh/2;
+    rww = 1.0/ww;
+    rwh = 1.0/wh;
+    ww2 = ww/2.0;
+    wh2 = wh/2.0;
     uw = (double)aspect / ww;
-    uh = 1 / wh;
+    uh = 1.0/wh;
     uw2 = (double)aspect / ww2;
-    uh2 = 1 / wh2;
+    uh2 = 1.0/wh2;
 
     mIdent(&projection);
-    mPerspective(&projection, 60.0f, aspect, 1.0f, FAR_DISTANCE*2.f); 
+    mPerspective(&projection, 60.0f, aspect, 1.0f, FAR_DISTANCE);
 }
 
 //*************************************
@@ -1468,9 +1465,12 @@ int main(int argc, char** argv)
     printf("----\n");
     printf("James William Fletcher (github.com/mrbid)\n");
     printf("----\n");
-    printf("There is only one command line argument, and that is the MSAA level 0-16.\n");
+    printf("There is only one command line argument, and that is the MSAA level 0-16.\n\n");
+    printf("The aim of the game, whatever you want, try and mine every asteroid if you can. Or just see how long you can survive in space.\n\n");
+	printf("On the back of your head are four color cubes, these are minerals collected from mining asteroids, these colors are also present in asteroids, these minerals are converted into on of the four actions: break/mine, repel, stop, and shield (when shiled is empty the two blue fuel cylinders will be consumed as shield).\n");
     printf("----\n");
     printf("~ Keyboard Input:\n");
+    printf("ESCAPE = Release mouse lock\n");
     printf("F = FPS to console\n");
     printf("P = Player stats to console\n");
     printf("N = New Game\n");
@@ -1479,7 +1479,6 @@ int main(int argc, char** argv)
     printf("R = Repel all nearby Asteroids\n");
     printf("W = Thrust Forward\n");
     printf("A = Turn Left\n");
-    printf("S = Thrust Backward\n");
     printf("D = Turn Right\n");
     printf("Shift = Thrust Down\n");
     printf("Space = Thrust Up\n");
@@ -1515,13 +1514,9 @@ int main(int argc, char** argv)
     // set icon
     glfwSetWindowIcon(window, 1, &(GLFWimage){16, 16, (unsigned char*)&icon_image.pixel_data});
 
-    // hide cursor
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
-
 //*************************************
 // projection
 //*************************************
-
     window_size_callback(window, winw, winh);
 
 //*************************************
@@ -1649,19 +1644,16 @@ int main(int argc, char** argv)
 //*************************************
 // compile & link shader programs
 //*************************************
-
-    //makeAllShaders();
     makeLambert1();
     makeLambert3();
 
 //*************************************
 // configure render options
 //*************************************
-
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_CULL_FACE);
     glEnable(GL_DEPTH_TEST);
-    glClearColor(0.0, 0.0, 0.0, 0.0);
+    glClearColor(0.f, 0.f, 0.f, 0.f);
 
 //*************************************
 // execute update / render loop
