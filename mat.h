@@ -1,10 +1,10 @@
 /*
-    October 2021
+    December 2022
 
     Requires vec.h: https://gist.github.com/mrbid/77a92019e1ab8b86109bf103166bd04e
 
     Credits:
-    Aaftab Munshi, Dan Ginsburg, Dave Shreiner, James William Fletcher, Intel, Gabriel Cramer
+    Aaftab Munshi, Dan Ginsburg, Dave Shreiner, James William Fletcher, Intel, Gabriel Cramer, Test_User
 */
 
 #ifndef MAT_H
@@ -18,27 +18,35 @@ typedef struct
 } mat;
 
 void mIdent(mat *m);
-void mCopy(mat* r, const mat* v);
+void mCopy(mat *r, const mat *v);
 void mMul(mat *r, const mat *a, const mat *b);
 void mMulP(vec *r, const mat *a, const float x, const float y, const float z);
 void mMulV(vec *r, const mat *a, const vec v);
 void mScale(mat *r, const float x, const float y, const float z);
 void mTranslate(mat *r, const float x, const float y, const float z);
-void mRotate(mat *r, const float radians, float x, float y, float z);
-void mRotX(mat *r, const float radians);
-void mRotY(mat *r, const float radians);
-void mRotZ(mat *r, const float radians);
+void mRotate(mat *r, const float radians, float x, float y, float z); // rotate axis (rotate X to move Y up and down)
+void mRotX(mat *r, const float radians); // rotate on axis
+void mRotY(mat *r, const float radians); // rotate on axis
+void mRotZ(mat *r, const float radians); // rotate on axis
+void mAngleAxisRotate(mat *r, const mat view, const float xrot, const float yrot, const float zrot); // gimbal free rotations
 void mFrustum(mat *r, const float left, const float right, const float bottom, const float top, const float nearZ, const float farZ);
 void mPerspective(mat *r, const float fovy, const float aspect, const float nearZ, const float farZ);
 void mOrtho(mat *r, const float left, const float right, const float bottom, const float top, const float nearZ, const float farZ);
 void mLookAt(mat *r, const vec origin, const vec unit_dir);
 void mInvert(float *dst, const float *mat);
-void mTranspose(mat *r, const mat* m);
+void mTranspose(mat *r, const mat *m);
 void mSetViewDir(mat *r, const vec dir_norm, const vec up_norm);
-void mGetViewDir(vec *r, const mat matrix); // returns normal/unit vector
+void mGetViewDir(vec *r, const mat matrix);
+void mGetViewX(vec *r, const mat matrix);
+void mGetViewY(vec *r, const mat matrix);
+void mGetViewZ(vec *r, const mat matrix);
+void mSetDir(mat *r, const vec dir_norm, const vec up_norm);
 void mGetDirX(vec *r, const mat matrix);
 void mGetDirY(vec *r, const mat matrix);
 void mGetDirZ(vec *r, const mat matrix);
+void mGetPos(vec *r, const mat matrix);
+void mSetPos(mat *r, const vec pos);
+void mDump(const mat matrix);
 
 //
 
@@ -51,7 +59,7 @@ void mIdent(mat *m)
     m->m[3][3] = 1.0f;
 }
 
-void mCopy(mat* r, const mat* v)
+void mCopy(mat *r, const mat *v)
 {
     memcpy(r, v, sizeof(mat));
 }
@@ -153,7 +161,7 @@ void mTranslate(mat *r, const float x, const float y, const float z)
 
 void mRotate(mat *r, const float radians, float x, float y, float z)
 {
-    const float mag = rsqrtss(x * x + y * y + z * z);
+    const float mag = 1.f/sqrtf(x * x + y * y + z * z);
     const float sinAngle = sinf(radians);
     const float cosAngle = cosf(radians);
     if(mag > 0.0f)
@@ -231,6 +239,70 @@ void mRotZ(mat *r, const float radians)
     mMul(r, &t, r);
 }
 
+void mAngleAxisRotate(mat *r, const mat view, const float xrot, const float yrot, const float zrot)
+{
+    // Test_User angle-axis rotation
+    // https://en.wikipedia.org/wiki/Axis%E2%80%93angle_representation
+    // https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
+    // this is incrementing the rotation of the provided view matrix by the xrot,yrot,zrot
+    vec tmp0, tmp1;
+
+    vec vecview[3] = {
+        {view.m[0][0], view.m[1][0], view.m[2][0]}, // r
+        {view.m[0][1], view.m[1][1], view.m[2][1]}, // u
+        {view.m[0][2], view.m[1][2], view.m[2][2]}  // f
+    };
+
+    // left/right
+    vMulS(&tmp0, vecview[0], cosf(xrot));
+
+    vCross(&tmp1, vecview[1], vecview[0]);
+    vMulS(&tmp1, tmp1, sinf(xrot));
+
+    vMulS(&vecview[0], vecview[1], vDot(vecview[1], vecview[0]) * (1.f - cosf(xrot)));
+
+    vAdd(&vecview[0], vecview[0], tmp0);
+    vAdd(&vecview[0], vecview[0], tmp1);
+
+    // up/down
+    vMulS(&tmp0, vecview[1], cosf(yrot));
+
+    vCross(&tmp1, vecview[0], vecview[1]);
+    vMulS(&tmp1, tmp1, sinf(yrot));
+
+    vMulS(&vecview[1], vecview[0], vDot(vecview[0], vecview[1]) * (1.f - cosf(yrot)));
+
+    vAdd(&vecview[1], vecview[1], tmp0);
+    vAdd(&vecview[1], vecview[1], tmp1);
+
+    vCross(&vecview[2], vecview[0], vecview[1]);
+    vCross(&vecview[1], vecview[2], vecview[0]);
+
+    // roll
+    vMulS(&tmp0, vecview[0], cosf(zrot));
+
+    vCross(&tmp1, vecview[2], vecview[0]);
+    vMulS(&tmp1, tmp1, sinf(zrot));
+
+    vMulS(&vecview[0], vecview[2], vDot(vecview[2], vecview[0]) * (1.f - cosf(zrot)));
+
+    vAdd(&vecview[0], vecview[0], tmp0);
+    vAdd(&vecview[0], vecview[0], tmp1);
+
+    vCross(&vecview[1], vecview[2], vecview[0]);
+
+    vNorm(&vecview[0]);
+    vNorm(&vecview[1]);
+    vNorm(&vecview[2]);
+
+    *r = (mat){
+        vecview[0].x, vecview[1].x, vecview[2].x, 0.f,
+        vecview[0].y, vecview[1].y, vecview[2].y, 0.f,
+        vecview[0].z, vecview[1].z, vecview[2].z, 0.f,
+        0.f, 0.f, 0.f, 1.f
+    };
+}
+
 void mFrustum(mat *r, const float left, const float right, const float bottom, const float top, const float nearZ, const float farZ)
 {
     const float dX = right - left;
@@ -263,10 +335,10 @@ void mFrustum(mat *r, const float left, const float right, const float bottom, c
 
 void mPerspective(mat *r, const float fovy, const float aspect, const float nearZ, const float farZ)
 {
-   float frustumW, frustumH;
-   frustumH = tanf(fovy * 0.002777778078f * PI ) * nearZ; // 0x3b360b62
-   frustumW = frustumH * aspect;
-   mFrustum(r, -frustumW, frustumW, -frustumH, frustumH, nearZ, farZ);
+    float frustumW, frustumH;
+    frustumH = tanf(fovy * 0.002777778078f * PI ) * nearZ; // 0x3b360b62
+    frustumW = frustumH * aspect;
+    mFrustum(r, -frustumW, frustumW, -frustumH, frustumH, nearZ, farZ);
 }
 
 void mOrtho(mat *r, const float left, const float right, const float bottom, const float top, const float nearZ, const float farZ)
@@ -418,8 +490,9 @@ void mInvert(float *dst, const float *mat)
     for(int j = 0; j < 16; j++){dst[j] *= det;}
 }
 
-void mTranspose(mat *r, const mat* m)
+void mTranspose(mat *r, const mat *m)
 {
+    r->m[0][0] = m->m[0][0];
     r->m[1][0] = m->m[0][1];
     r->m[2][0] = m->m[0][2];
     r->m[3][0] = m->m[0][3];
@@ -440,7 +513,59 @@ void mTranspose(mat *r, const mat* m)
     r->m[3][3] = m->m[3][3];
 }
 
+//
+
 void mSetViewDir(mat *r, const vec dir_norm, const vec up_norm)
+{
+    vec c;
+    vCross(&c, up_norm, dir_norm);
+    vNorm(&c);
+
+    vec rup;
+    vCross(&rup, dir_norm, c);
+
+    r->m[0][0] = -c.x;
+    r->m[1][0] = -c.y;
+    r->m[2][0] = -c.z;
+
+    r->m[0][1] = -rup.x;
+    r->m[1][1] = -rup.y;
+    r->m[2][1] = -rup.z;
+
+    r->m[0][2] = -dir_norm.x;
+    r->m[1][2] = -dir_norm.y;
+    r->m[2][2] = -dir_norm.z;
+}
+
+void mGetViewDir(vec *r, const mat matrix)
+{
+    mGetViewZ(r, matrix);
+}
+
+void mGetViewX(vec *r, const mat matrix)
+{
+    r->x = -matrix.m[0][0];
+    r->y = -matrix.m[1][0];
+    r->z = -matrix.m[2][0];
+}
+
+void mGetViewY(vec *r, const mat matrix)
+{
+    r->x = -matrix.m[0][1];
+    r->y = -matrix.m[1][1];
+    r->z = -matrix.m[2][1];
+}
+
+void mGetViewZ(vec *r, const mat matrix)
+{
+    r->x = -matrix.m[0][2];
+    r->y = -matrix.m[1][2];
+    r->z = -matrix.m[2][2];
+}
+
+//
+
+void mSetDir(mat *r, const vec dir_norm, const vec up_norm)
 {
     vec c;
     vCross(&c, up_norm, dir_norm);
@@ -462,13 +587,6 @@ void mSetViewDir(mat *r, const vec dir_norm, const vec up_norm)
     r->m[2][2] = dir_norm.z;
 }
 
-void mGetViewDir(vec *r, const mat matrix)
-{
-    r->x = -matrix.m[0][2];
-    r->y = -matrix.m[1][2];
-    r->z = -matrix.m[2][2];
-}
-
 void mGetDirX(vec *r, const mat matrix)
 {
     r->x = matrix.m[0][0];
@@ -488,6 +606,29 @@ void mGetDirZ(vec *r, const mat matrix)
     r->x = matrix.m[2][0];
     r->y = matrix.m[2][1];
     r->z = matrix.m[2][2];
+}
+
+void mGetPos(vec *r, const mat matrix)
+{
+    r->x = matrix.m[3][0];
+    r->y = matrix.m[3][1];
+    r->z = matrix.m[3][2];
+}
+
+void mSetPos(mat *r, const vec pos)
+{
+    r->m[3][0] = pos.x;
+    r->m[3][1] = pos.y;
+    r->m[3][2] = pos.z;
+}
+
+void mDump(const mat matrix)
+{
+    printf("%+.2f %+.2f %+.2f %+.2f\n", matrix.m[0][0], matrix.m[0][1], matrix.m[0][2], matrix.m[0][3]);
+    printf("%+.2f %+.2f %+.2f %+.2f\n", matrix.m[1][0], matrix.m[1][1], matrix.m[1][2], matrix.m[1][3]);
+    printf("%+.2f %+.2f %+.2f %+.2f\n", matrix.m[2][0], matrix.m[2][1], matrix.m[2][2], matrix.m[2][3]);
+    printf("%+.2f %+.2f %+.2f %+.2f\n", matrix.m[3][0], matrix.m[3][1], matrix.m[3][2], matrix.m[3][3]);
+    printf("---\n");
 }
 
 #endif
