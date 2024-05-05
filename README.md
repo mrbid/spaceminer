@@ -1,9 +1,9 @@
+### ⚠️ This has been superceeded by the latest version [here](https://github.com/mrbid/NotABug-Mirror/tree/main/SpaceMiner).
+
 # spaceminer
 A 3D space mining game.
 
 [![Screenshot of the Space Miner game](https://res.cloudinary.com/canonical/image/fetch/f_auto,q_auto,fl_sanitize,w_819,h_637/https://dashboard.snapcraft.io/site_media/appmedia/2022/01/Screenshot_2022-01-02_18-12-12.png)](https://www.youtube.com/watch?v=PKAjwRyGCS0 "Space Miner Game Video")
-
-This has been superceeded by the latest version at: https://github.com/mrbid/NotABug-Mirror/tree/main/SpaceMiner
 
 You just float around and collect space rocks.
 
